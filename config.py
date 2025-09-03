@@ -4,8 +4,8 @@ from river_anomaly import FEATURE_LIMITS
 
 KAFKA_BROKER = "localhost:38441"
 KAFKA_TOPIC = "weather_data" # input
-OUT_TOPIC = "out-topic" # anomalies / enriched
-EXPLANATIONS_TOPIC = "explanations-topic" # MDP explanations
+OUT_TOPIC = "out_topic" # anomalies / enriched
+EXPLANATIONS_TOPIC = "explanations_topic" # MDP explanations
 
 
 # SHAP (unchanged)

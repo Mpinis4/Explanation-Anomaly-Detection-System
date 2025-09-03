@@ -36,9 +36,11 @@ def build_explainer():
     )
 
 
-def step(state: MDPStreamExplainer, record):
-    # record is a ConsumerRecord; value is bytes/str
-    data = json.loads(record.value)
+def step(state: MDPStreamExplainer, values):
+    if state is None:
+        state = build_explainer() 
+    print(values)
+    data = json.loads(values)
 
     # features normalized 0..1 (as στο υπάρχον σου pipeline)
     features = {
@@ -89,18 +91,14 @@ def step(state: MDPStreamExplainer, record):
             ],
         }
         msgs.append(
-            KafkaSinkMessage(record.key, json.dumps(payload, default=json_serialize), topic=EXPLANATIONS_TOPIC)
+            KafkaSinkMessage(data["location_name"], json.dumps(payload, default=json_serialize), topic=EXPLANATIONS_TOPIC)
         )
 
-    # always forward enriched anomaly record to OUT_TOPIC
     msgs.append(
-        KafkaSinkMessage(record.key, json.dumps(data, default=json_serialize), topic=OUT_TOPIC)
+        KafkaSinkMessage(data["location_name"], json.dumps(data, default=json_serialize), topic=OUT_TOPIC)
     )
 
-    for m in msgs:
-        yield m
-
-    return state
+    return state, msgs
 
 
 # ---- Build flow ----
@@ -108,11 +106,14 @@ flow = Dataflow("weather_with_mdp")
 kinp = op.input("input", flow, KafkaSource([KAFKA_BROKER], [KAFKA_TOPIC]))
 
 # optional: log
-# logged = op.map("log", kinp, lambda x: (print(f"Consumed: Key={x.key}, Value={x.value}"), x)[1])
+#logged = op.map("log", kinp, lambda x: (print(f"Consumed: Value={x.value}"), x)[1])
 # use kinp directly to avoid extra prints
 
+keyed = op.map("to_key_value", kinp, lambda msg: (msg.key.decode() if msg.key else None, msg.value))
+
+ex_out = op.stateful_flat_map("mdp_step",keyed,step)
+
 # stateful step so ο explainer κρατάει μετρητές μεταξύ events
-ex_out = op.stateful_map("mdp_step", kinp, build_explainer, step)
 
 # Single Kafka sink; per-message topic override via KafkaSinkMessage(topic=...)
 op.output("kafka-out", ex_out, KafkaSink([KAFKA_BROKER], OUT_TOPIC))
