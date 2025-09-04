@@ -10,7 +10,7 @@ from config import (
     MDP_NUM_BINS,
 )
 from river_anomaly import detect_anomaly
-from mdp_explainer import MDPStreamExplainer
+from mdp_explainer import MDPStreamExplainer, Explanation
 import json
 import numpy as np
 
@@ -20,6 +20,8 @@ def json_serialize(obj):
         return obj.tolist()
     if isinstance(obj, (np.float32, np.float64, np.int32, np.int64)):
         return obj.item()
+    if isinstance(obj, Explanation):
+        return obj.__dict__
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
@@ -38,11 +40,13 @@ def build_explainer():
 
 def step(state: MDPStreamExplainer, values):
     if state is None:
-        state = build_explainer() 
-    print(values)
+        state = build_explainer()
+
+    if isinstance(values, bytes):
+        values = values.decode()
+
     data = json.loads(values)
 
-    # features normalized 0..1 (as στο υπάρχον σου pipeline)
     features = {
         "temperature": data["temperature"] / 30,
         "pressure": data["pressure"] / 1100,
@@ -50,15 +54,13 @@ def step(state: MDPStreamExplainer, values):
         "wind_speed": data["wind"]["speed"] / 7,
         "cloud_coverage": data["clouds"] / 100,
         "rain": data.get("rain", 0.0) / 500,
-        "is_anomaly": data.get("is_anomaly", False)
+        "is_anomaly": data.get("is_anomaly", False),
     }
 
-    # anomaly detection (River HST)
     anomaly_score, is_anomaly = detect_anomaly(features)
     data["anomaly_score"] = anomaly_score
     data["anomaly"] = is_anomaly
 
-    # --- build attributes for MDP (discretize numeric + add categorical context) ---
     raw_numeric = {k: v for k, v in features.items() if k != "is_anomaly"}
     extra_cats = {
         "weather": data.get("weather"),
@@ -67,53 +69,43 @@ def step(state: MDPStreamExplainer, values):
     }
     attrs = state.to_attributes(raw_numeric, bins=MDP_NUM_BINS, extra_cats=extra_cats)
 
-    # update explainer
     state.observe(attrs, bool(is_anomaly))
 
-    # maybe emit explanations
     msgs = []
     exps = state.maybe_emit()
     if exps:
+        print("----------inside if-------")
         payload = {
-            "window": {
-                "size_events": MDP_WINDOW_MAX_EVENTS,
-            },
-            "explanations": [
-                {
-                    "items": list(e.items),
-                    "risk_ratio": e.risk_ratio,
-                    "support_outlier": e.support_outlier,
-                    "support_inlier": e.support_inlier,
-                    "ao": e.ao, "ai": e.ai, "bo": e.bo, "bi": e.bi,
-                    "k": e.k,
-                }
-                for e in exps
-            ],
+            "window": {"size_events": MDP_WINDOW_MAX_EVENTS},
+            "explanations": [e.__dict__ for e in exps],
         }
+        print("before KAFKA SINK MESSAGE 1")
         msgs.append(
-            KafkaSinkMessage(data["location_name"], json.dumps(payload, default=json_serialize), topic=EXPLANATIONS_TOPIC)
+            KafkaSinkMessage(
+                key=data.get("location_name", "").encode(),
+                value=json.dumps(payload, default=json_serialize).encode(),
+                topic=EXPLANATIONS_TOPIC,
+            )
         )
-
+        print("----------SURPRISE IT DIDNT BUG-------")
+        print("AFTER KAFKA SINK MESSAGE 1")
+    print("before KAFKA SINK MESSAGE 2")
     msgs.append(
-        KafkaSinkMessage(data["location_name"], json.dumps(data, default=json_serialize), topic=OUT_TOPIC)
+        KafkaSinkMessage(
+            key=data.get("location_name", "").encode(),
+            value=json.dumps(data, default=json_serialize).encode(),
+            topic=OUT_TOPIC,
+        )
     )
 
     return state, msgs
 
 
-# ---- Build flow ----
 flow = Dataflow("weather_with_mdp")
 kinp = op.input("input", flow, KafkaSource([KAFKA_BROKER], [KAFKA_TOPIC]))
 
-# optional: log
-#logged = op.map("log", kinp, lambda x: (print(f"Consumed: Value={x.value}"), x)[1])
-# use kinp directly to avoid extra prints
-
 keyed = op.map("to_key_value", kinp, lambda msg: (msg.key.decode() if msg.key else None, msg.value))
 
-ex_out = op.stateful_flat_map("mdp_step",keyed,step)
+ex_out = op.stateful_flat_map("mdp_step", keyed, step)
 
-# stateful step so ο explainer κρατάει μετρητές μεταξύ events
-
-# Single Kafka sink; per-message topic override via KafkaSinkMessage(topic=...)
-op.output("kafka-out", ex_out, KafkaSink([KAFKA_BROKER], OUT_TOPIC))
+op.output("kafka-out", ex_out, KafkaSink([KAFKA_BROKER],OUT_TOPIC))
