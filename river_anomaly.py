@@ -34,7 +34,7 @@ def detect_anomaly(features, threshold=DEFAULT_THRESHOLD):
         # Ensure feature values are valid (numeric)
         features = {key: float(value) for key, value in features.items()}
 
-        logger.info(f"Input features: {features}")
+        #logger.info(f"Input features: {features}")
         # Compute the anomaly score
         anomaly_score = river_model.score_one(features)
 
@@ -49,7 +49,7 @@ def detect_anomaly(features, threshold=DEFAULT_THRESHOLD):
 
         evaluate_model()
 
-        logger.info(f"Anomaly Score: {anomaly_score}, Detected: {is_anomaly}")
+        #logger.info(f"Anomaly Score: {anomaly_score}, Detected: {is_anomaly}")
         return anomaly_score, is_anomaly
 
     except ValueError as ve:
@@ -67,7 +67,7 @@ def evaluate_model():
         dict: A dictionary containing model evaluation metrics.
     """
     try:
-        logger.info(f"Model Evaluation - ROC AUC: {anomaly_metric}")
+        #logger.info(f"Model Evaluation - ROC AUC: {anomaly_metric}")
         return {"roc_auc": anomaly_metric}
     except Exception as e:
         logger.error(f"Error during model evaluation: {e}")

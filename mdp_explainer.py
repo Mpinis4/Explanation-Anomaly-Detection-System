@@ -91,14 +91,14 @@ class MDPStreamExplainer:
     def __init__(
         self,
         *,
-        min_outlier_support: float = 0.05,
-        min_risk_ratio: float = 2.0,
+        min_outlier_support: float = 0.01,
+        min_risk_ratio: float = 1.1,
         max_len: int = 3,
         epsilon_amc: float = 0.001,
         decay_rate: float = 0.0,
         amc_stable_size: int = 5000,
-        window_max_events: int = 1000,
-        window_max_seconds: Optional[float] = None,
+        window_max_events: int = 5,
+        window_max_seconds: Optional[float] = 10,
     ) -> None:
         self.min_outlier_support = min_outlier_support
         self.min_risk_ratio = min_risk_ratio
