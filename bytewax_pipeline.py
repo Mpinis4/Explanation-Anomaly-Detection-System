@@ -53,29 +53,28 @@ def step(state: MDPStreamExplainer, value):
 
     # Normalize features
     features = {
-        "temperature": data.get("temperature", 0) / 30,
-        "pressure": data.get("pressure", 0) / 1100,
-        "humidity": data.get("humidity", 0) / 100,
-        "wind_speed": data.get("wind", {}).get("speed", 0) / 7,
-        "cloud_coverage": data.get("clouds", 0) / 100,
-        "rain": data.get("rain", 0.0) / 500,
-        "is_anomaly": data.get("is_anomaly"),
+        "temperature": data.get("temperature", 0)/30,
+        "pressure": data.get("pressure", 0)/1100,
+        "humidity": data.get("humidity", 0)/100,
+        "wind_speed": data.get("wind", {}).get("speed", 0)/7,
+        "cloud_coverage": data.get("clouds", 0)/100,
+        "rain": data.get("rain", 0.0)/500,
     }
 
+    is_it_anomaly_label = data.get("is_anomaly", False)
+
     # Detect anomalies
-    anomaly_score, is_anomaly = detect_anomaly(features)
+    anomaly_score, is_anomaly = detect_anomaly(features,true_label=is_it_anomaly_label)
     data["anomaly_score"] = anomaly_score
     data["anomaly"] = is_anomaly
-
     # Convert to explainer attributes
-    raw_numeric = {k: v for k, v in features.items() if k != is_anomaly}
     extra_cats = {
         "weather": data.get("weather"),
         "country": data.get("country"),
         "location_name": data.get("location_name"),
     }
-    attrs = state.to_attributes(raw_numeric, bins=MDP_NUM_BINS, extra_cats=extra_cats)
-    print(">>> ATTRS:", attrs, "is_anomaly:", is_anomaly)
+    attrs = state.to_attributes(features, bins=MDP_NUM_BINS, extra_cats=extra_cats)
+    # print(">>> ATTRS:", attrs, "ANOMALY:", is_anomaly)
     # Update explainer state
     state.observe(attrs, data.get("anomaly", False))
 
@@ -92,7 +91,7 @@ def step(state: MDPStreamExplainer, value):
     )
 
     exps = state.maybe_emit()
-    print(">>> maybe_emit returned:", exps)   # <--- DEBUG
+    # print(">>> maybe_emit returned:", exps)   # <--- DEBUG
     if exps:
         payload = {
             "window": {"size_events": MDP_WINDOW_MAX_EVENTS},

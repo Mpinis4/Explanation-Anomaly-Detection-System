@@ -27,18 +27,18 @@ if __name__ == "__main__":
     try:
         data = {
             "location_name": "San Francisco",
-            "weather": "ANOMALY",  # Access the first element of the list
-            "weather_description": "ANOMALY CREATION",  # Access the first element of the list
-            "temperature": 9.11,
+            "weather": "Clouds",  # Access the first element of the list
+            "weather_description": "overcast clouds",  # Access the first element of the list
+            "temperature": 15.62,
             "pressure": 1020,
-            "humidity": 86,
+            "humidity": 83,
             "wind": {
-                        "speed": 1.34,
-                        "deg": 121,
-                        "gust": 3.47
+                        "speed": 5.36,
+                        "deg": 360,
+                        "gust": 7.6
                     },
-            "rain": 0,
-            "clouds": 100,
+            "rain": 0.0,
+            "clouds": 0,
             "country": "US",
             "is_anomaly":True
         }

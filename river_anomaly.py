@@ -29,7 +29,7 @@ anomaly_metric = metrics.ROCAUC()  # Track model performance
 # Default anomaly score threshold
 DEFAULT_THRESHOLD = 0.8
 
-def detect_anomaly(features, threshold=DEFAULT_THRESHOLD):
+def detect_anomaly(features, true_label=False, threshold=DEFAULT_THRESHOLD):
     try:
         # Ensure feature values are valid (numeric)
         features = {key: float(value) for key, value in features.items()}
@@ -44,12 +44,11 @@ def detect_anomaly(features, threshold=DEFAULT_THRESHOLD):
         # Determine if this is an anomaly
         is_anomaly = anomaly_score > threshold
 
-        true_label = features.pop("is_anomaly")
         anomaly_metric.update(true_label, is_anomaly)
 
         evaluate_model()
 
-        #logger.info(f"Anomaly Score: {anomaly_score}, Detected: {is_anomaly}")
+        # logger.info(f"Anomaly Score: {anomaly_score}, Detected: {is_anomaly}")
         return anomaly_score, is_anomaly
 
     except ValueError as ve:
