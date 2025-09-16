@@ -8,12 +8,12 @@ logger = logging.getLogger("RiverAnomaly")
 
 # Define feature limits based on typical weather data ranges
 FEATURE_LIMITS = {
-    "temperature": (6/30, 30/30),
-    "pressure": (900/1100, 1100/1100),
-    "humidity": (0, 100/100),
-    "wind_speed": (0, 7/7),
-    "cloud_coverage": (0, 100/100),
-    "rain": (0, 500/500)
+    "temperature": (0.0, 1.1), 
+    "pressure": (0.0, 1.0),
+    "humidity": (0.0, 1.0),
+    "wind_speed": (0.0, 1.0),
+    "cloud_coverage": (0.0, 1.05),
+    "rain": (0.0, 1.0)
 }
 
 # Initialize the River model with limits and performance tracker
@@ -27,7 +27,7 @@ river_model = anomaly.HalfSpaceTrees(
 anomaly_metric = metrics.ROCAUC()  # Track model performance
 
 # Default anomaly score threshold
-DEFAULT_THRESHOLD = 0.8
+DEFAULT_THRESHOLD = 0.89
 
 def detect_anomaly(features, true_label=False, threshold=DEFAULT_THRESHOLD):
     try:
@@ -43,10 +43,10 @@ def detect_anomaly(features, true_label=False, threshold=DEFAULT_THRESHOLD):
 
         # Determine if this is an anomaly
         is_anomaly = anomaly_score > threshold
-
+        
         anomaly_metric.update(true_label, is_anomaly)
 
-        evaluate_model()
+        # evaluate_model()
 
         # logger.info(f"Anomaly Score: {anomaly_score}, Detected: {is_anomaly}")
         return anomaly_score, is_anomaly
@@ -66,7 +66,7 @@ def evaluate_model():
         dict: A dictionary containing model evaluation metrics.
     """
     try:
-        #logger.info(f"Model Evaluation - ROC AUC: {anomaly_metric}")
+        logger.info(f"Model Evaluation - ROC AUC: {anomaly_metric}")
         return {"roc_auc": anomaly_metric}
     except Exception as e:
         logger.error(f"Error during model evaluation: {e}")

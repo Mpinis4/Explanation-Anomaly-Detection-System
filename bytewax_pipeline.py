@@ -56,7 +56,7 @@ def step(state: MDPStreamExplainer, value):
         "temperature": data.get("temperature", 0)/30,
         "pressure": data.get("pressure", 0)/1100,
         "humidity": data.get("humidity", 0)/100,
-        "wind_speed": data.get("wind", {}).get("speed", 0)/7,
+        "wind_speed": data.get("wind", {}).get("speed", 0)/12,
         "cloud_coverage": data.get("clouds", 0)/100,
         "rain": data.get("rain", 0.0)/500,
     }
@@ -74,7 +74,8 @@ def step(state: MDPStreamExplainer, value):
         "location_name": data.get("location_name"),
     }
     attrs = state.to_attributes(features, bins=MDP_NUM_BINS, extra_cats=extra_cats)
-    # print(">>> ATTRS:", attrs, "ANOMALY:", is_anomaly)
+    if is_anomaly:
+        print(">>> LOCATION NAME:", data.get("location_name"), "ANOMALY:", is_anomaly,"ANOMALY SCORE:",anomaly_score)
     # Update explainer state
     state.observe(attrs, data.get("anomaly", False))
 
@@ -97,7 +98,7 @@ def step(state: MDPStreamExplainer, value):
             "window": {"size_events": MDP_WINDOW_MAX_EVENTS},
             "explanations": [e.__dict__ for e in exps],
         }
-        print(">>> EXPLANATIONS PAYLOAD:", payload)   # <--- DEBUG
+        # print(">>> EXPLANATIONS PAYLOAD:", payload)   # <--- DEBUG
         msgs.append(
             KafkaSinkMessage(
                 key=location_name.encode(),
@@ -134,8 +135,7 @@ explanations = op.filter("only_explanations", just_msgs,
                          lambda msg: msg.topic == EXPLANATIONS_TOPIC)
 
 # Inspect them
-op.inspect("explanations-debug", explanations, 
-           lambda sid, item: print(f"[{sid}] {item.value.decode()}") or item)
+# op.inspect("explanations-debug", explanations, lambda sid, item: print(f"[{sid}] {item.value.decode()}") or item)
 
 # Output to Kafka
 op.output("kafka-out", just_msgs, KafkaSink([KAFKA_BROKER], topic=None))
