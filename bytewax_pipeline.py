@@ -115,8 +115,7 @@ flow = Dataflow("weather_with_mdp")
 
 # Kafka input -> decode into (key, value)
 kinp = op.input("input", flow, KafkaSource([KAFKA_BROKER], [KAFKA_TOPIC]))
-keyed = op.map("to_key_value", kinp, lambda msg: (msg.key.decode() if msg.key else None, msg.value))
-
+keyed = op.map("to_key_value", kinp, lambda msg: ("__global__", msg.value))
 # Run stateful explainer
 ex_out = op.stateful_flat_map("mdp_step", keyed, step)
 

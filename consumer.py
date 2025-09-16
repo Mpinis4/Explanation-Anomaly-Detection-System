@@ -15,6 +15,7 @@ consumer.subscribe([EXPLANATIONS_TOPIC])
 
 print("Listening for explanations... Ctrl+C to stop.")
 
+
 try:
     while True:
         msg = consumer.poll(timeout=1.0)
