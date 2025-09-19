@@ -27,7 +27,7 @@ river_model = anomaly.HalfSpaceTrees(
 anomaly_metric = metrics.ROCAUC()  # Track model performance
 
 # Default anomaly score threshold
-DEFAULT_THRESHOLD = 0.89
+DEFAULT_THRESHOLD = 0.9
 
 def detect_anomaly(features, true_label=False, threshold=DEFAULT_THRESHOLD):
     try:

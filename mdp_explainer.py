@@ -9,9 +9,42 @@ from fp_tree import build_fptree, fpgrowth
 
 # --- utils ---
 
+def filter_largest_patterns(expls: List[Explanation]) -> List[Explanation]:
+    """Keep the largest patterns, discarding only fully contained subsets, ignoring RR equality."""
+    # Sort by pattern length descending
+    expls.sort(key=lambda e: len(e.items), reverse=True)
+
+    largest: List[Explanation] = []
+    for ex in expls:
+        if not any(set(ex.items).issubset(set(kp.items)) for kp in largest):
+            largest.append(ex)
+    return largest
+
+def filter_maximal_patterns(expls: List[Explanation]) -> List[Explanation]:
+    """Keep only maximal patterns with same support and risk ratio."""
+    # Sort by pattern length descending so we keep largest first
+    expls.sort(key=lambda e: len(e.items), reverse=True)
+
+    maximal: List[Explanation] = []
+    for ex in expls:
+        is_subset = False
+        for kept in maximal:
+            if (
+                set(ex.items).issubset(set(kept.items)) and
+                abs(ex.risk_ratio - kept.risk_ratio) < 1e-9 and
+                abs(ex.support_outlier - kept.support_outlier) < 1e-9 and
+                abs(ex.support_inlier - kept.support_inlier) < 1e-9
+            ):
+                is_subset = True
+                break
+        if not is_subset:
+            maximal.append(ex)
+
+    return maximal
+
 def risk_ratio(ao: float, ai: float, bo: float, bi: float, eps: float = 1e-9) -> float:
-    num = ao / max(ao + ai, eps)
-    den = bo / max(bo + bi, eps)
+    num = (ao +1)/ max(ao + ai+2, eps)
+    den = (bo+1) / max(bo + bi+2, eps)
     if den == 0:
         den = eps
     return num / den
@@ -91,7 +124,7 @@ class MDPStreamExplainer:
     def __init__(
         self,
         *,
-        min_outlier_support: float = 0.01,
+        min_outlier_support: float = 0.1,
         min_risk_ratio: float = 1.1,
         max_len: int = 3,
         epsilon_amc: float = 0.001,
@@ -182,6 +215,9 @@ class MDPStreamExplainer:
                 bo = self.total_o - ao
                 bi = self.total_i - ai
                 rr = risk_ratio(ao, ai, bo, bi)
+                print("TOTAL OUTLIERS:",self.total_o,"TOTAL INLIERS:",self.total_i)
+                print("inliers with this attribute:",ai,"outliers with this attribute:",ao,"inliers WITHOUT this attribute:",bi,"outliers WITHOUT this attribute:",bo)
+                print("RISK RATIO:",rr)
                 if sup_o >= self.min_outlier_support and rr >= self.min_risk_ratio:
                     passed.append(it)
 
@@ -237,6 +273,12 @@ class MDPStreamExplainer:
 
         # sort
         expls.sort(key=lambda e: (e.risk_ratio, e.support_outlier), reverse=True)
+
+        # Option 1: keep current maximal filtering (existing behavior)
+        expls = filter_maximal_patterns(expls)
+
+        # # Option 2: keep the largest patterns (new behavior)
+        # expls = filter_largest_patterns(expls)
 
         # roll window: decay & maintenance, reset buffers
         if self.decay_rate > 0.0:
