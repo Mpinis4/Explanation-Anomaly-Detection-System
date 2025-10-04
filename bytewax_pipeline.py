@@ -7,7 +7,7 @@ from config import (
     MDP_MIN_SUPPORT, MDP_MIN_RR, MDP_MAX_K,
     MDP_WINDOW_MAX_EVENTS, MDP_WINDOW_MAX_SECONDS,
     MDP_AMC_EPSILON, MDP_AMC_STABLE_SIZE, MDP_DECAY_RATE,
-    MDP_NUM_BINS,
+    MDP_NUM_BINS,MDP_SLIDE_STEP
 )
 from river_anomaly import detect_anomaly
 from mdp_explainer import MDPStreamExplainer, Explanation
@@ -37,6 +37,7 @@ def build_explainer():
         amc_stable_size=MDP_AMC_STABLE_SIZE,
         window_max_events=MDP_WINDOW_MAX_EVENTS,
         window_max_seconds=MDP_WINDOW_MAX_SECONDS,
+        slide_step=MDP_SLIDE_STEP
     )
 
 

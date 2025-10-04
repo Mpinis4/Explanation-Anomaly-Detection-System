@@ -26,20 +26,20 @@ if __name__ == "__main__":
     print("Starting real-time weather data producer...")
     try:
         data = {
-            "location_name": "Athens",
-            "weather": "Sunny",  # Access the first element of the list
-            "weather_description": "rainny clouds",  # Access the first element of the list
-            "temperature": 29.62,
-            "pressure": 999,
-            "humidity": 90,
+            "location_name": "Santiago",
+            "weather": "Clouds",  # Access the first element of the list
+            "weather_description": "few clouds",  # Access the first element of the list
+            "temperature": 13.62,
+            "pressure": 1000,
+            "humidity": 60,
             "wind": {
                         "speed": 5.36,
                         "deg": 360,
                         "gust": 7.6
                     },
             "rain": 7.0,
-            "clouds": 90,
-            "country": "Greece",
+            "clouds": 99,
+            "country": "US",
             "is_anomaly":True
         }
         

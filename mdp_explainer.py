@@ -132,6 +132,7 @@ class MDPStreamExplainer:
         amc_stable_size: int = 5000,
         window_max_events: int = 5,
         window_max_seconds: Optional[float] = 10,
+        slide_step:int=None
     ) -> None:
         self.min_outlier_support = min_outlier_support
         self.min_risk_ratio = min_risk_ratio
@@ -146,6 +147,7 @@ class MDPStreamExplainer:
         self.window_started_at = time.time()
         self.window_max_events = window_max_events
         self.window_max_seconds = window_max_seconds
+        self.slide_step=slide_step or window_max_events
         self.amc_stable_size = amc_stable_size
         self.decay_rate = decay_rate
 
@@ -183,16 +185,25 @@ class MDPStreamExplainer:
             self.amc_in.batch_observe(items, 1.0)
             self.window_inlier_tx.append(list(items))
         self.window_events += 1
-        if self.window_events % 256 == 0:
-            self.amc_out.maintain_by_size(self.amc_stable_size)
-            self.amc_in.maintain_by_size(self.amc_stable_size)
+        # if self.window_events % 256 == 0:
+        #     self.amc_out.maintain_by_size(self.amc_stable_size)
+        #     self.amc_in.maintain_by_size(self.amc_stable_size)
+        if len(self.window_outlier_tx) > self.window_max_events:
+            self.window_outlier_tx.pop(0)
+        if len(self.window_inlier_tx) > self.window_max_events:
+            self.window_inlier_tx.pop(0)
 
+
+    # def _window_ready(self) -> bool:
+    #     if self.window_max_events and self.window_events >= self.window_max_events:
+    #         return True
+    #     if self.window_max_seconds is not None and (time.time() - self.window_started_at) >= self.window_max_seconds:
+    #         return True
+    #     return False
     def _window_ready(self) -> bool:
-        if self.window_max_events and self.window_events >= self.window_max_events:
-            return True
-        if self.window_max_seconds is not None and (time.time() - self.window_started_at) >= self.window_max_seconds:
-            return True
-        return False
+        # Εκπέμπει κάθε φορά που έχουν έρθει slide_step νέα γεγονότα
+        return self.window_events % self.slide_step == 0
+
 
     def maybe_emit(self) -> List[Explanation]:
         if not self._window_ready():
@@ -282,13 +293,14 @@ class MDPStreamExplainer:
 
         # roll window: decay & maintenance, reset buffers
         if self.decay_rate > 0.0:
-            self.amc_out.decay(); self.amc_in.decay()
+            self.amc_out.decay()
+            self.amc_in.decay()
             factor = 1.0 - self.decay_rate
             self.total_o *= factor
             self.total_i *= factor
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
-        self.window_outlier_tx.clear(); self.window_inlier_tx.clear()
-        self.window_events = 0
-        self.window_started_at = time.time()
+        # self.window_outlier_tx.clear(); self.window_inlier_tx.clear()
+        # self.window_events = 0
+        # self.window_started_at = time.time()
         return expls
