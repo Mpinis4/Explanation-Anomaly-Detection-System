@@ -292,12 +292,11 @@ class MDPStreamExplainer:
         # expls = filter_largest_patterns(expls)
 
         # roll window: decay & maintenance, reset buffers
-        if self.decay_rate > 0.0:
-            self.amc_out.decay()
-            self.amc_in.decay()
-            factor = 1.0 - self.decay_rate
-            self.total_o *= factor
-            self.total_i *= factor
+        self.amc_out.decay()
+        self.amc_in.decay()
+        factor = 1.0 - self.decay_rate
+        self.total_o *= factor
+        self.total_i *= factor
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
         # self.window_outlier_tx.clear(); self.window_inlier_tx.clear()
