@@ -25,29 +25,33 @@ topic = KAFKA_TOPIC
 if __name__ == "__main__":
     print("Starting real-time weather data producer...")
     try:
-        data = {
-            "location_name": "Santiago",
-            "weather": "Clouds",  # Access the first element of the list
-            "weather_description": "few clouds",  # Access the first element of the list
-            "temperature": 13.62,
-            "pressure": 1000,
-            "humidity": 60,
+        # imitate OpenWeather API's message
+        anomaly_payload = {
+            "weather": [
+                {"main": "Extreme", "description": "tornado"}
+            ],
+            "main": {
+                "temp": 60.0,
+                "pressure": 900,
+                "humidity": 5 
+            },
             "wind": {
-                        "speed": 5.36,
-                        "deg": 360,
-                        "gust": 7.6
-                    },
-            "rain": 7.0,
-            "clouds": 99,
-            "country": "US",
-            "is_anomaly":True
+                "speed": 45.0,
+                "deg": 180
+            },
+            "clouds": {"all": 100},
+            "rain": {"1h": 50.0},
+            "sys": {"country": "US"},
+
+            "location_name": "San Francisco",
+            "is_anomaly": True
         }
         
         # Serialize and send to Kafka
         producer.produce(
             topic,
             key=location['name'],
-            value=json.dumps(data),
+            value=json.dumps(anomaly_payload),
             callback=delivery_callback
         )
         producer.flush()

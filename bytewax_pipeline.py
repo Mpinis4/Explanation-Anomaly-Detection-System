@@ -50,16 +50,31 @@ def step(state: MDPStreamExplainer, value):
     # decode -> dict
     if isinstance(value, bytes):
         value = value.decode()
-    data = json.loads(value)
+    raw = json.loads(value)
+
+    # feature selection
+    data = {
+        "location_name": raw.get("location_name"),
+        "weather": raw.get("weather", [{}])[0].get("main"),
+        "weather_description": raw.get("weather", [{}])[0].get("description"),
+        "temperature": raw.get("main", {}).get("temp"),
+        "pressure": raw.get("main", {}).get("pressure"),
+        "humidity": raw.get("main", {}).get("humidity"),
+        "wind_speed": raw.get("wind", {}).get("speed"),
+        "cloud_coverage": raw.get("clouds", {}).get("all"),
+        "rain": raw.get("rain", {}).get("1h"),
+        "country": raw.get("sys", {}).get("country"),
+        "is_anomaly": raw.get("is_anomaly", False),
+    }
 
     # Normalize features
     features = {
-        "temperature": data.get("temperature", 0)/30,
-        "pressure": data.get("pressure", 0)/1100,
-        "humidity": data.get("humidity", 0)/100,
-        "wind_speed": data.get("wind", {}).get("speed", 0)/12,
-        "cloud_coverage": data.get("clouds", 0)/100,
-        "rain": data.get("rain", 0.0)/500,
+        "temperature": (data.get("temperature") or 0)/30,
+        "pressure": (data.get("pressure") or 0)/1100,
+        "humidity": (data.get("humidity") or 0)/100,
+        "wind_speed": (data.get("wind_speed") or 0)/12,
+        "cloud_coverage": (data.get("clouds") or 0)/100,
+        "rain": (data.get("rain") or 0)/500,
     }
 
     is_it_anomaly_label = data.get("is_anomaly", False)
@@ -118,7 +133,8 @@ flow = Dataflow("weather_with_mdp")
 # Kafka input -> decode into (key, value)
 kinp = op.input("input", flow, KafkaSource([KAFKA_BROKER], [KAFKA_TOPIC]))
 keyed = op.map("to_key_value", kinp, lambda msg: ("__global__", msg.value))
-# Run stateful explainer
+# op.inspect("keyed input",keyed)
+
 ex_out = op.stateful_flat_map("mdp_step", keyed, step)
 
 # Drop the stateful key, keep only KafkaSinkMessages

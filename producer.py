@@ -59,30 +59,20 @@ def fetch_and_send_weather_data(location):
             'appid': API_KEY,
             'units': 'metric'  # 'metric' = Celsius 
         }
+        # request data based on parameters
         response = requests.get(API_URL, params=params)
         weather_data = response.json()
 
         if response.status_code == 200:
-            # extract and add metadata
-            data = {
-                "location_name": location['name'],
-                "weather": weather_data["weather"][0]["main"],  
-                "weather_description": weather_data["weather"][0]["description"],
-                "temperature": weather_data["main"]["temp"],
-                "pressure": weather_data["main"]["pressure"],
-                "humidity": weather_data["main"]["humidity"],
-                "wind": weather_data["wind"],
-                "rain": weather_data.get("rain", {}).get("1h", 0.0),
-                "clouds": weather_data["clouds"]["all"],
-                "country": weather_data["sys"]["country"],
-                "is_anomaly":False # metadata
-            }
+            # add metadata
+            weather_data["location_name"]=location["name"]
+            weather_data["is_anomaly"]=False
             
-            # Serialize and send to Kafka
+            # Serialize and send to Kafka 
             producer.produce(
                 topic,
                 key=location['name'],
-                value=json.dumps(data),
+                value=json.dumps(weather_data),
                 callback=delivery_callback
             )
             producer.flush()
