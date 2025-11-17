@@ -8,10 +8,6 @@ OUT_TOPIC = "out_topic" # anomalies / enriched
 EXPLANATIONS_TOPIC = "explanations_topic" # MDP explanations
 
 
-# SHAP (unchanged)
-SHAP_EXPLAINER_BACKGROUND = np.array([[(low + high) / 2 for low, high in FEATURE_LIMITS.values()]])
-
-
 # --- MDP (MacroBase-like) configuration ---
 # thresholds
 MDP_MIN_SUPPORT = 0.05 # min outlier support (relative in a window)

@@ -77,6 +77,12 @@ def reset_model():
     Reset the anomaly detection model and metrics for re-initialization.
     """
     global river_model, anomaly_metric
-    river_model =anomaly.HalfSpaceTrees(seed=42, limits=FEATURE_LIMITS)
+    river_model = anomaly.HalfSpaceTrees(
+        seed=42,
+        limits=FEATURE_LIMITS,
+        n_trees=50, # the number of trees
+        height=10  # tree depth for finer 
+        
+    )
     anomaly_metric = metrics.ROCAUC()
     logger.info("Anomaly detection model and metrics have been reset.")
