@@ -8,11 +8,11 @@ logger = logging.getLogger("RiverAnomaly")
 
 # Define feature limits based on typical weather data ranges
 FEATURE_LIMITS = {
-    "temperature": (0.0, 1.1), 
+    "temperature": (0.0, 1.0), 
     "pressure": (0.0, 1.0),
     "humidity": (0.0, 1.0),
     "wind_speed": (0.0, 1.0),
-    "cloud_coverage": (0.0, 1.05),
+    "cloud_coverage": (0.0, 1.00),
     "rain": (0.0, 1.0)
 }
 

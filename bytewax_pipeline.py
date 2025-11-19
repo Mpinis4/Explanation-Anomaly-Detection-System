@@ -72,9 +72,9 @@ def step(state: MDPStreamExplainer, value):
         "temperature": (data.get("temperature") or 0)/30,
         "pressure": (data.get("pressure") or 0)/1100,
         "humidity": (data.get("humidity") or 0)/100,
-        "wind_speed": (data.get("wind_speed") or 0)/12,
+        "wind_speed": (data.get("wind_speed") or 0)/32,
         "cloud_coverage": (data.get("clouds") or 0)/100,
-        "rain": (data.get("rain") or 0)/500,
+        "rain": (data.get("rain") or 0)/10,
     }
 
     is_it_anomaly_label = data.get("is_anomaly", False)

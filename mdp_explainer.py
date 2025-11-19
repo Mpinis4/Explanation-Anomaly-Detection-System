@@ -173,7 +173,7 @@ class MDPStreamExplainer:
                 attrs[k] = v
         return attrs
 
-    # ---- ingestion ----
+    # ---- observe message ----
     def observe(self, attrs: Dict[str, Any], is_outlier: bool) -> None:
         items = canonical_items(attrs)
         if is_outlier:
