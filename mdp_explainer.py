@@ -282,7 +282,7 @@ class MDPStreamExplainer:
         self.total_i *= factor
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
-        # clear the fp-tree observers
+        # clear the fp-tree observers should look into it its not the best solution to outlier support skyrocketing
         self.window_outliers_observations.clear()
         self.window_inlier_observations.clear()
         # self.window_events = 0
