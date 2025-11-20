@@ -6,7 +6,7 @@ from config import (
     KAFKA_BROKER, KAFKA_TOPIC, OUT_TOPIC, EXPLANATIONS_TOPIC,
     MDP_MIN_SUPPORT, MDP_MIN_RR, MDP_MAX_K,
     MDP_WINDOW_MAX_EVENTS, MDP_WINDOW_MAX_SECONDS,
-    MDP_AMC_EPSILON, MDP_AMC_STABLE_SIZE, MDP_DECAY_RATE,
+    MDP_AMC_STABLE_SIZE, MDP_DECAY_RATE,
     MDP_NUM_BINS,MDP_SLIDE_STEP
 )
 from river_anomaly import detect_anomaly
@@ -32,7 +32,6 @@ def build_explainer():
         min_outlier_support=MDP_MIN_SUPPORT,
         min_risk_ratio=MDP_MIN_RR,
         max_len=MDP_MAX_K,
-        epsilon_amc=MDP_AMC_EPSILON,
         decay_rate=MDP_DECAY_RATE,
         amc_stable_size=MDP_AMC_STABLE_SIZE,
         window_max_events=MDP_WINDOW_MAX_EVENTS,

@@ -31,19 +31,19 @@ if __name__ == "__main__":
                 {"main": "Extreme", "description": "tornado"}
             ],
             "main": {
-                "temp": 60.0,
-                "pressure": 900,
-                "humidity": 5 
+                "temp": 10.0,
+                "pressure": 1000,
+                "humidity": 50 
             },
             "wind": {
-                "speed": 45.0,
+                "speed": 10.0,
                 "deg": 180
             },
-            "clouds": {"all": 100},
-            "rain": {"1h": 50.0},
+            "clouds": {"all": 80},
+            "rain": {"1h": 10.0},
             "sys": {"country": "US"},
 
-            "location_name": "San Francisco",
+            "location_name": "Santiago",
             "is_anomaly": True
         }
         

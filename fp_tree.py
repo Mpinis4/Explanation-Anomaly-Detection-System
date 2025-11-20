@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple, Iterable
 from collections import Counter
-import heapq
 
 class FPNode:
     __slots__ = ("item", "count", "parent", "children", "node_link")
@@ -22,7 +21,7 @@ class FPTree:
         self.item_counts: Counter = Counter()
 
 
-    def add_transaction(self, items: Iterable[Any], weight: float = 1.0) -> None:
+    def add_observation(self, items: Iterable[Any], weight: float = 1.0) -> None:
         cur = self.root
         for it in items:
             if it in cur.children:
@@ -56,12 +55,12 @@ class FPTree:
             node = node.node_link
         return patterns
     
-def build_fptree(transactions: List[List[Any]], weights: Optional[List[float]], min_support_count: float) -> FPTree:
+def build_fptree(observations: List[List[Any]], weights: Optional[List[float]], min_support_count: float) -> FPTree:
     item_counts: Counter = Counter()
     if weights is None:
-        weights = [1.0] * len(transactions)
-    for tx, w in zip(transactions, weights):
-        for it in tx:
+        weights = [1.0] * len(observations)
+    for obs, w in zip(observations, weights):
+        for it in obs:
             item_counts[it] += w
 
 
@@ -73,12 +72,12 @@ def build_fptree(transactions: List[List[Any]], weights: Optional[List[float]], 
 
 
     order_key = lambda it: (-item_counts[it], it)
-    for tx, w in zip(transactions, weights):
-        filtered = [it for it in tx if it in frequent]
+    for obs, w in zip(observations, weights):
+        filtered = [it for it in obs if it in frequent]
         if not filtered:
             continue
         ordered = sorted(filtered, key=order_key)
-        tree.add_transaction(ordered, w)
+        tree.add_observation(ordered, w)
     return tree
 
 def fpgrowth(tree: FPTree, suffix: Tuple[Any, ...], min_support_count: float, max_len: int) -> List[Tuple[Tuple[Any, ...], float]]:
@@ -97,9 +96,9 @@ def fpgrowth(tree: FPTree, suffix: Tuple[Any, ...], min_support_count: float, ma
         base = tree.conditional_pattern_base(it)
         if not base:
             continue
-        cond_tx = [p for p, _ in base]
+        cond_obs = [p for p, _ in base]
         cond_w = [w for _, w in base]
-        cond_tree = build_fptree(cond_tx, cond_w, min_support_count)
+        cond_tree = build_fptree(cond_obs, cond_w, min_support_count)
         if cond_tree.header:
             results.extend(fpgrowth(cond_tree, new_itemset, min_support_count, max_len))
     return results

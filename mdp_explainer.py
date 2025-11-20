@@ -2,23 +2,11 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, Iterable, List, Tuple, Optional
 import time
-import heapq
 import math
 
 from fp_tree import build_fptree, fpgrowth
 
 # --- utils ---
-
-def filter_largest_patterns(expls: List[Explanation]) -> List[Explanation]:
-    """Keep the largest patterns, discarding only fully contained subsets, ignoring RR equality."""
-    # Sort by pattern length descending
-    expls.sort(key=lambda e: len(e.items), reverse=True)
-
-    largest: List[Explanation] = []
-    for ex in expls:
-        if not any(set(ex.items).issubset(set(kp.items)) for kp in largest):
-            largest.append(ex)
-    return largest
 
 def filter_maximal_patterns(expls: List[Explanation]) -> List[Explanation]:
     """Keep only maximal patterns with same support and risk ratio."""
@@ -50,24 +38,24 @@ def risk_ratio(ao: float, ai: float, bo: float, bi: float, eps: float = 1e-9) ->
     return num / den
 
 
-def canonical_items(attrs: Dict[str, Any]) -> Tuple[Tuple[str, Any], ...]:
+
+def dict_to_tuple_sorted(attrs: Dict[str, Any]) -> Tuple[Tuple[str, Any], ...]:
     return tuple(sorted(attrs.items()))
 
 
 # --- AMC ---
 class AMC:
-    def __init__(self, epsilon: float = 0.001, decay_rate: float = 0.0) -> None:
-        assert 0 < epsilon <= 1.0
+    def __init__(self, decay_rate: float = 0.0) -> None:
         assert 0.0 <= decay_rate < 1.0
         self.counts: Dict[Any, float] = {}
-        self._wi: float = 0.0
+        self.error_floor: float = 0.0
         self.decay_rate = decay_rate
 
     def observe(self, item: Any, c: float = 1.0) -> None:
         if item in self.counts:
             self.counts[item] += c
         else:
-            self.counts[item] = self._wi + c
+            self.counts[item] = self.error_floor + c
 
     def batch_observe(self, items: Iterable[Any], c: float = 1.0) -> None:
         for it in items:
@@ -76,7 +64,6 @@ class AMC:
     def maintain_by_size(self, stable_size: int) -> None:
         if stable_size <= 0 or not self.counts or len(self.counts) <= stable_size:
             return
-        largest = heapq.nlargest(stable_size, self.counts.items(), key=lambda kv: kv[1])
         items_sorted = sorted(self.counts.items(), key=lambda kv: kv[1], reverse=True)
         new_counts: Dict[Any, float] = {}
         kept = 0
@@ -88,7 +75,7 @@ class AMC:
             else:
                 removed_max = max(removed_max, v)
         self.counts = new_counts
-        self._wi = removed_max
+        self.error_floor = removed_max
 
     def decay(self) -> None:
         if self.decay_rate <= 0 or not self.counts:
@@ -98,7 +85,7 @@ class AMC:
             self.counts[k] *= factor
             if self.counts[k] < 1e-12:
                 del self.counts[k]
-        self._wi *= factor
+        self.error_floor *= factor
 
     def get(self, item: Any) -> float:
         return self.counts.get(item, 0.0)
@@ -127,7 +114,6 @@ class MDPStreamExplainer:
         min_outlier_support: float = 0.1,
         min_risk_ratio: float = 1.1,
         max_len: int = 3,
-        epsilon_amc: float = 0.001,
         decay_rate: float = 0.0,
         amc_stable_size: int = 5000,
         window_max_events: int = 5,
@@ -137,12 +123,12 @@ class MDPStreamExplainer:
         self.min_outlier_support = min_outlier_support
         self.min_risk_ratio = min_risk_ratio
         self.max_len = max_len
-        self.amc_out = AMC(epsilon=epsilon_amc, decay_rate=decay_rate)
-        self.amc_in = AMC(epsilon=epsilon_amc, decay_rate=decay_rate)
+        self.amc_out = AMC(decay_rate=decay_rate)
+        self.amc_in = AMC(decay_rate=decay_rate)
         self.total_o = 0.0
         self.total_i = 0.0
-        self.window_outlier_tx: List[List[Tuple[str, Any]]] = []
-        self.window_inlier_tx: List[List[Tuple[str, Any]]] = []
+        self.window_outliers_observations: List[List[Tuple[str, Any]]] = []
+        self.window_inlier_observations: List[List[Tuple[str, Any]]] = []
         self.window_events = 0
         self.window_started_at = time.time()
         self.window_max_events = window_max_events
@@ -175,38 +161,38 @@ class MDPStreamExplainer:
 
     # ---- observe message ----
     def observe(self, attrs: Dict[str, Any], is_outlier: bool) -> None:
-        items = canonical_items(attrs)
+        items = dict_to_tuple_sorted(attrs)
         if is_outlier:
             self.total_o += 1.0
             self.amc_out.batch_observe(items, 1.0)
-            self.window_outlier_tx.append(list(items))
+            self.window_outliers_observations.append(list(items))
         else:
             self.total_i += 1.0
             self.amc_in.batch_observe(items, 1.0)
-            self.window_inlier_tx.append(list(items))
+            self.window_inlier_observations.append(list(items))
         self.window_events += 1
         # if self.window_events % 256 == 0:
         #     self.amc_out.maintain_by_size(self.amc_stable_size)
         #     self.amc_in.maintain_by_size(self.amc_stable_size)
-        if len(self.window_outlier_tx) > self.window_max_events:
-            self.window_outlier_tx.pop(0)
-        if len(self.window_inlier_tx) > self.window_max_events:
-            self.window_inlier_tx.pop(0)
+        if len(self.window_outliers_observations) > self.window_max_events:
+            self.window_outliers_observations.pop(0)
+        if len(self.window_inlier_observations) > self.window_max_events:
+            self.window_inlier_observations.pop(0)
 
 
-    # def _window_ready(self) -> bool:
+    # def error_floorndow_ready(self) -> bool:
     #     if self.window_max_events and self.window_events >= self.window_max_events:
     #         return True
     #     if self.window_max_seconds is not None and (time.time() - self.window_started_at) >= self.window_max_seconds:
     #         return True
     #     return False
-    def _window_ready(self) -> bool:
+    def error_floorndow_ready(self) -> bool:
         # Εκπέμπει κάθε φορά που έχουν έρθει slide_step νέα γεγονότα
         return self.window_events % self.slide_step == 0
 
 
     def maybe_emit(self) -> List[Explanation]:
-        if not self._window_ready():
+        if not self.error_floorndow_ready():
             return []
         return self._emit_and_roll()
 
@@ -226,22 +212,22 @@ class MDPStreamExplainer:
                 bo = self.total_o - ao
                 bi = self.total_i - ai
                 rr = risk_ratio(ao, ai, bo, bi)
-                print("TOTAL OUTLIERS:",self.total_o,"TOTAL INLIERS:",self.total_i)
-                print("inliers with this attribute:",ai,"outliers with this attribute:",ao,"inliers WITHOUT this attribute:",bi,"outliers WITHOUT this attribute:",bo)
-                print("RISK RATIO:",rr)
+                # print("TOTAL OUTLIERS:",self.total_o,"TOTAL INLIERS:",self.total_i)
+                # print("inliers with this attribute:",ai,"outliers with this attribute:",ao,"inliers WITHOUT this attribute:",bi,"outliers WITHOUT this attribute:",bo)
+                # print("RISK RATIO:",rr)
                 if sup_o >= self.min_outlier_support and rr >= self.min_risk_ratio:
                     passed.append(it)
 
         # (2) FP-Growth on outliers with only passed items
         if self.total_o > 0 and passed:
             pset = set(passed)
-            filtered_outlier_tx: List[List[Tuple[str, Any]]] = []
-            for tx in self.window_outlier_tx:
-                keep = [it for it in tx if it in pset]
+            filtered_outlier_observations: List[List[Tuple[str, Any]]] = []
+            for obs in self.window_outliers_observations:
+                keep = [it for it in obs if it in pset]
                 if keep:
-                    filtered_outlier_tx.append(keep)
+                    filtered_outlier_observations.append(keep)
             min_support_count = self.min_outlier_support * self.total_o
-            tree = build_fptree(filtered_outlier_tx, None, min_support_count)
+            tree = build_fptree(filtered_outlier_observations, None, min_support_count)
             candidates = fpgrowth(tree, suffix=tuple(), min_support_count=min_support_count, max_len=self.max_len)
 
             # (3) Final RR filter vs inliers (only for candidates)
@@ -250,8 +236,8 @@ class MDPStreamExplainer:
                     continue
                 ai = 0.0
                 cset = set(cand_items)
-                for itx in self.window_inlier_tx:
-                    if cset.issubset(set(itx)):
+                for obs in self.window_inlier_observations:
+                    if cset.issubset(set(obs)):
                         ai += 1.0
                 bo = self.total_o - ao
                 bi = self.total_i - ai
@@ -282,14 +268,11 @@ class MDPStreamExplainer:
                 risk_ratio=rr, k=1
             ))
 
-        # sort
+        # sort first by risk ratio then by outlier suppport
         expls.sort(key=lambda e: (e.risk_ratio, e.support_outlier), reverse=True)
 
         # Option 1: keep current maximal filtering (existing behavior)
         expls = filter_maximal_patterns(expls)
-
-        # # Option 2: keep the largest patterns (new behavior)
-        # expls = filter_largest_patterns(expls)
 
         # roll window: decay & maintenance, reset buffers
         self.amc_out.decay()
@@ -299,7 +282,9 @@ class MDPStreamExplainer:
         self.total_i *= factor
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
-        # self.window_outlier_tx.clear(); self.window_inlier_tx.clear()
+        # clear the fp-tree observers
+        self.window_outliers_observations.clear()
+        self.window_inlier_observations.clear()
         # self.window_events = 0
         # self.window_started_at = time.time()
         return expls

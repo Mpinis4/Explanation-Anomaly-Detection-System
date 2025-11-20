@@ -8,7 +8,7 @@ EXPLANATIONS_TOPIC = "explanations_topic" # explanations
 # --- MDP like configuration ---
 # thresholds
 MDP_MIN_SUPPORT = 0.05 # min outlier support (relative in a window)
-MDP_MIN_RR = 2.0 # min risk ratio
+MDP_MIN_RR = 3.0 # min risk ratio
 MDP_MAX_K = 9 # max combination size
 
 # streaming windowing
@@ -17,7 +17,6 @@ MDP_WINDOW_MAX_SECONDS = None # or a float in seconds
 MDP_SLIDE_STEP=20
 
 # AMC sketch (single-attribute counts)
-MDP_AMC_EPSILON = 0.001 
 MDP_AMC_STABLE_SIZE = 5000
 MDP_DECAY_RATE = 0.5 #  per window (exponential decay)
 
