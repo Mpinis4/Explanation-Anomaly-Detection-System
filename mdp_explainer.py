@@ -216,34 +216,48 @@ class MDPStreamExplainer:
                 # print("inliers with this attribute:",ai,"outliers with this attribute:",ao,"inliers WITHOUT this attribute:",bi,"outliers WITHOUT this attribute:",bo)
                 # print("RISK RATIO:",rr)
                 if sup_o >= self.min_outlier_support and rr >= self.min_risk_ratio:
+                    
                     passed.append(it)
 
-        # (2) FP-Growth on outliers with only passed items
-        if self.total_o > 0 and passed:
+        # (2) FP-Growth on outliers with only passed items 
+        total_o_w = float(len(self.window_outliers_observations))
+        total_i_w = float(len(self.window_inlier_observations))
+
+        if total_o_w > 0 and passed:
             pset = set(passed)
             filtered_outlier_observations: List[List[Tuple[str, Any]]] = []
             for obs in self.window_outliers_observations:
                 keep = [it for it in obs if it in pset]
                 if keep:
                     filtered_outlier_observations.append(keep)
-            min_support_count = self.min_outlier_support * self.total_o
+
+            # min support για patterns με βάση ΤΟ ΠΑΡΑΘΥΡΟ outliers
+            min_support_count = self.min_outlier_support * total_o_w
+
             tree = build_fptree(filtered_outlier_observations, None, min_support_count)
             candidates = fpgrowth(tree, suffix=tuple(), min_support_count=min_support_count, max_len=self.max_len)
 
             # (3) Final RR filter vs inliers (only for candidates)
+            # (3) Final RR filter vs inliers (only for candidates)
             for cand_items, ao in candidates:
                 if len(cand_items) > self.max_len:
                     continue
+                # πόσοι inliers στο ΠΑΡΑΘΥΡΟ περιέχουν αυτό το pattern
                 ai = 0.0
                 cset = set(cand_items)
                 for obs in self.window_inlier_observations:
                     if cset.issubset(set(obs)):
                         ai += 1.0
-                bo = self.total_o - ao
-                bi = self.total_i - ai
-                sup_o = ao / max(self.total_o, 1e-9)
-                sup_i = ai / max(self.total_i, 1e-9) if self.total_i > 0 else 0.0
+                # counts + supports ΜΟΝΟ από το sliding window
+                bo = total_o_w - ao
+                bi = total_i_w - ai
+                sup_o = ao / max(total_o_w, 1e-9)
+                sup_i = ai / max(total_i_w, 1e-9) if total_i_w > 0 else 0.0
                 rr = risk_ratio(ao, ai, bo, bi)
+                print("WINDOW OUTLIERS:", total_o_w, "WINDOW INLIERS:", total_i_w)
+                print("inliers with pattern:", ai, "outliers with pattern:", ao,
+                      "inliers WITHOUT pattern:", bi, "outliers WITHOUT pattern:", bo)
+                print("RISK RATIO(pattern):", rr)
                 if rr >= self.min_risk_ratio:
                     expls.append(Explanation(
                         items=tuple(sorted(cand_items)),
@@ -283,8 +297,8 @@ class MDPStreamExplainer:
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
         # clear the fp-tree observers should look into it its not the best solution to outlier support skyrocketing
-        self.window_outliers_observations.clear()
-        self.window_inlier_observations.clear()
+        # self.window_outliers_observations.clear()
+        # self.window_inlier_observations.clear()
         # self.window_events = 0
         # self.window_started_at = time.time()
         return expls

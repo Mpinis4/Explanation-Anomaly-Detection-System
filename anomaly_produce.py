@@ -31,19 +31,19 @@ if __name__ == "__main__":
                 {"main": "Extreme", "description": "tornado"}
             ],
             "main": {
-                "temp": 10.0,
-                "pressure": 1000,
-                "humidity": 50 
+                "temp": 18.7,
+                "pressure": 1013,
+                "humidity": 20 
             },
             "wind": {
                 "speed": 10.0,
                 "deg": 180
             },
-            "clouds": {"all": 80},
-            "rain": {"1h": 10.0},
-            "sys": {"country": "US"},
+            "clouds": {"all": 5},
+            "rain": {"1h": 3},
+            "sys": {"country": "ΙΤ"},
 
-            "location_name": "Santiago",
+            "location_name": "Cape Town",
             "is_anomaly": True
         }
         
