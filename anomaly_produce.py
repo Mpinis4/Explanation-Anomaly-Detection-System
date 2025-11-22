@@ -28,22 +28,22 @@ if __name__ == "__main__":
         # imitate OpenWeather API's message
         anomaly_payload = {
             "weather": [
-                {"main": "Extreme", "description": "tornado"}
+                {"main": "weird", "description": "tornado"}
             ],
             "main": {
-                "temp": 18.7,
-                "pressure": 1013,
-                "humidity": 20 
+                "temp": 20,
+                "pressure": 900,
+                "humidity": 60 
             },
             "wind": {
                 "speed": 10.0,
                 "deg": 180
             },
-            "clouds": {"all": 5},
-            "rain": {"1h": 3},
+            "clouds": {"all": 80},
+            "rain": {"1h": 10},
             "sys": {"country": "IT"},
 
-            "location_name": "Cape Town",
+            "location_name": "Rome",
             "is_anomaly": True
         }
         

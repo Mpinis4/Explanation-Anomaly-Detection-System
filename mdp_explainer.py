@@ -115,24 +115,23 @@ class MDPStreamExplainer:
         min_risk_ratio: float = 1.1,
         max_len: int = 3,
         decay_rate: float = 0.0,
-        amc_stable_size: int = 5000,
-        window_max_events: int = 5,
-        slide_step:int=None
+        amc_stable_size: int = 500,
+        window_max_events: int = 100,
+        slide_step:int=20
     ) -> None:
         self.min_outlier_support = min_outlier_support
         self.min_risk_ratio = min_risk_ratio
         self.max_len = max_len
+        self.decay_rate = decay_rate
+        self.amc_stable_size = amc_stable_size
+        self.window_max_events = window_max_events
+        self.slide_step=slide_step
         self.amc_out = AMC(decay_rate=decay_rate)
         self.amc_in = AMC(decay_rate=decay_rate)
         self.total_o = 0.0
         self.total_i = 0.0
         self.window_observations: List[Tuple[bool, List[Tuple[str, Any]]]] = []
         self.window_events = 0
-        self.window_started_at = time.time()
-        self.window_max_events = window_max_events
-        self.slide_step=slide_step or window_max_events
-        self.amc_stable_size = amc_stable_size
-        self.decay_rate = decay_rate
 
     # ---- discretization helper ----
     @staticmethod
@@ -292,5 +291,5 @@ class MDPStreamExplainer:
         self.total_i *= factor
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
-        
+
         return expls
