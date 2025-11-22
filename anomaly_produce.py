@@ -41,7 +41,7 @@ if __name__ == "__main__":
             },
             "clouds": {"all": 5},
             "rain": {"1h": 3},
-            "sys": {"country": "ΙΤ"},
+            "sys": {"country": "IT"},
 
             "location_name": "Cape Town",
             "is_anomaly": True

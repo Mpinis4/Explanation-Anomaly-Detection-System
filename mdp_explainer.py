@@ -127,8 +127,9 @@ class MDPStreamExplainer:
         self.amc_in = AMC(decay_rate=decay_rate)
         self.total_o = 0.0
         self.total_i = 0.0
-        self.window_outliers_observations: List[List[Tuple[str, Any]]] = []
-        self.window_inlier_observations: List[List[Tuple[str, Any]]] = []
+        # self.window_outliers_observations: List[List[Tuple[str, Any]]] = []
+        # self.window_inlier_observations: List[List[Tuple[str, Any]]] = []
+        self.window_observations: List[Tuple[bool, List[Tuple[str, Any]]]] = []
         self.window_events = 0
         self.window_started_at = time.time()
         self.window_max_events = window_max_events
@@ -165,19 +166,23 @@ class MDPStreamExplainer:
         if is_outlier:
             self.total_o += 1.0
             self.amc_out.batch_observe(items, 1.0)
-            self.window_outliers_observations.append(list(items))
+            # self.window_outliers_observations.append(list(items))
         else:
             self.total_i += 1.0
             self.amc_in.batch_observe(items, 1.0)
-            self.window_inlier_observations.append(list(items))
+            # self.window_inlier_observations.append(list(items))
+        
+        self.window_observations.append((is_outlier,list(items)))
         self.window_events += 1
+        if len(self.window_observations) > self.window_max_events:
+            self.window_observations.pop(0)
         # if self.window_events % 256 == 0:
         #     self.amc_out.maintain_by_size(self.amc_stable_size)
         #     self.amc_in.maintain_by_size(self.amc_stable_size)
-        if len(self.window_outliers_observations) > self.window_max_events:
-            self.window_outliers_observations.pop(0)
-        if len(self.window_inlier_observations) > self.window_max_events:
-            self.window_inlier_observations.pop(0)
+        # if len(self.window_outliers_observations) > self.window_max_events:
+        #     self.window_outliers_observations.pop(0)
+        # if len(self.window_inlier_observations) > self.window_max_events:
+        #     self.window_inlier_observations.pop(0)
 
 
     # def error_floorndow_ready(self) -> bool:
@@ -220,13 +225,24 @@ class MDPStreamExplainer:
                     passed.append(it)
 
         # (2) FP-Growth on outliers with only passed items 
-        total_o_w = float(len(self.window_outliers_observations))
-        total_i_w = float(len(self.window_inlier_observations))
+
+        # --- Building outlier / inlier observations same window ---
+        window_outliers_observations: List[List[Tuple[str, Any]]] = []
+        window_inlier_observations: List[List[Tuple[str, Any]]] = []
+
+        for is_out, obs in self.window_observations:
+            if is_out:
+                window_outliers_observations.append(obs)
+            else:
+                window_inlier_observations.append(obs)
+
+        total_o_w = float(len(window_outliers_observations))
+        total_i_w = float(len(window_inlier_observations))
 
         if total_o_w > 0 and passed:
             pset = set(passed)
             filtered_outlier_observations: List[List[Tuple[str, Any]]] = []
-            for obs in self.window_outliers_observations:
+            for obs in window_outliers_observations:
                 keep = [it for it in obs if it in pset]
                 if keep:
                     filtered_outlier_observations.append(keep)
@@ -238,14 +254,15 @@ class MDPStreamExplainer:
             candidates = fpgrowth(tree, suffix=tuple(), min_support_count=min_support_count, max_len=self.max_len)
 
             # (3) Final RR filter vs inliers (only for candidates)
-            # (3) Final RR filter vs inliers (only for candidates)
+
             for cand_items, ao in candidates:
+                
                 if len(cand_items) > self.max_len:
                     continue
                 # πόσοι inliers στο ΠΑΡΑΘΥΡΟ περιέχουν αυτό το pattern
                 ai = 0.0
                 cset = set(cand_items)
-                for obs in self.window_inlier_observations:
+                for obs in window_inlier_observations:
                     if cset.issubset(set(obs)):
                         ai += 1.0
                 # counts + supports ΜΟΝΟ από το sliding window
@@ -254,10 +271,10 @@ class MDPStreamExplainer:
                 sup_o = ao / max(total_o_w, 1e-9)
                 sup_i = ai / max(total_i_w, 1e-9) if total_i_w > 0 else 0.0
                 rr = risk_ratio(ao, ai, bo, bi)
-                print("WINDOW OUTLIERS:", total_o_w, "WINDOW INLIERS:", total_i_w)
-                print("inliers with pattern:", ai, "outliers with pattern:", ao,
-                      "inliers WITHOUT pattern:", bi, "outliers WITHOUT pattern:", bo)
-                print("RISK RATIO(pattern):", rr)
+                # print("WINDOW OUTLIERS:", total_o_w, "WINDOW INLIERS:", total_i_w)
+                # print("inliers with pattern:", ai, "outliers with pattern:", ao,
+                #       "inliers WITHOUT pattern:", bi, "outliers WITHOUT pattern:", bo)
+                # print("RISK RATIO(pattern):", rr)
                 if rr >= self.min_risk_ratio:
                     expls.append(Explanation(
                         items=tuple(sorted(cand_items)),
@@ -270,11 +287,15 @@ class MDPStreamExplainer:
         for it in passed:
             ao = self.amc_out.get(it)
             ai = self.amc_in.get(it)
+
             bo = self.total_o - ao
             bi = self.total_i - ai
             sup_o = ao / max(self.total_o, 1e-9)
             sup_i = ai / max(self.total_i, 1e-9) if self.total_i > 0 else 0.0
             rr = risk_ratio(ao, ai, bo, bi)
+            print("inliers with siglenton:", ai, "outliers with siglenton:", ao,
+                    "inliers WITHOUT siglenton:", bi, "outliers WITHOUT siglenton:", bo)
+            print("RISK RATIO:", rr)
             expls.append(Explanation(
                 items=(it,),
                 ao=ao, ai=ai, bo=bo, bi=bi,
