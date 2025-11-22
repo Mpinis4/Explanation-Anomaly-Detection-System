@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, Iterable, List, Tuple, Optional
-import time
 import math
 
 from fp_tree import build_fptree, fpgrowth
@@ -117,7 +116,7 @@ class MDPStreamExplainer:
         decay_rate: float = 0.0,
         amc_stable_size: int = 500,
         window_max_events: int = 100,
-        slide_step:int=20
+        emit_after_events:int=20
     ) -> None:
         self.min_outlier_support = min_outlier_support
         self.min_risk_ratio = min_risk_ratio
@@ -125,7 +124,7 @@ class MDPStreamExplainer:
         self.decay_rate = decay_rate
         self.amc_stable_size = amc_stable_size
         self.window_max_events = window_max_events
-        self.slide_step=slide_step
+        self.emit_after_events=emit_after_events
         self.amc_out = AMC(decay_rate=decay_rate)
         self.amc_in = AMC(decay_rate=decay_rate)
         self.total_o = 0.0
@@ -173,8 +172,8 @@ class MDPStreamExplainer:
             self.window_observations.pop(0)
 
     def window_ready(self) -> bool:
-        # Εκπέμπει κάθε φορά που έχουν έρθει slide_step νέα γεγονότα
-        return self.window_events % self.slide_step == 0
+        # Εκπέμπει κάθε φορά που έχουν έρθει emit_after_events νέα γεγονότα
+        return self.window_events % self.emit_after_events == 0
 
 
     def maybe_emit(self) -> List[Explanation]:
@@ -187,63 +186,76 @@ class MDPStreamExplainer:
 
     def _emit_and_roll(self) -> List[Explanation]:
         expls: List[Explanation] = []
+        seen: set = set()
 
-        # (1) Singletons filter
+        # (1) singleton-amc based
         passed: List[Tuple[str, Any]] = []
+
         if self.total_o > 0 and self.total_i > 0:
             for it in list(self.amc_out.keys()):
                 ao = self.amc_out.get(it)
                 ai = self.amc_in.get(it)
-                sup_o = ao / max(self.total_o, 1e-9)
                 bo = self.total_o - ao
                 bi = self.total_i - ai
+                sup_o = ao / max(self.total_o, 1e-9)
+                sup_i = ai / max(self.total_i, 1e-9) if self.total_i > 0 else 0.0
                 rr = risk_ratio(ao, ai, bo, bi)
                 if sup_o >= self.min_outlier_support and rr >= self.min_risk_ratio:
-                    
                     passed.append(it)
+                    key = (it,)
+                    seen.add(it,)
+                    expls.append(Explanation(
+                        items=(it,),
+                        ao=ao, ai=ai, bo=bo, bi=bi,
+                        support_outlier=sup_o, support_inlier=sup_i,
+                        risk_ratio=rr, k=1
+                    ))
 
-        # (2) FP-Growth on outliers with only passed items 
-
-        # --- Building outlier / inlier observations same window ---
-        window_outliers_observations: List[List[Tuple[str, Any]]] = []
-        window_inlier_observations: List[List[Tuple[str, Any]]] = []
+        # windows data for outliers/inliers
+        window_out: List[List[Tuple[str, Any]]] = []
+        window_in: List[List[Tuple[str, Any]]] = []
 
         for is_out, obs in self.window_observations:
             if is_out:
-                window_outliers_observations.append(obs)
+                window_out.append(obs)
             else:
-                window_inlier_observations.append(obs)
+                window_in.append(obs)
 
-        total_o_w = float(len(window_outliers_observations))
-        total_i_w = float(len(window_inlier_observations))
+        total_o_w = float(len(window_out))
+        total_i_w = float(len(window_in))
 
+        # patterns fp-growth based
         if total_o_w > 0 and passed:
             pset = set(passed)
-            filtered_outlier_observations: List[List[Tuple[str, Any]]] = []
-            for obs in window_outliers_observations:
-                keep = [it for it in obs if it in pset]
-                if keep:
-                    filtered_outlier_observations.append(keep)
+            filtered_out: List[List[Tuple[str, Any]]] = []
 
-            # min support για patterns με βάση ΤΟ ΠΑΡΑΘΥΡΟ outliers
+            for obs in window_out:
+                keep = [it for it in obs if it in pset]
+                if len(keep) >= 2:
+                    filtered_out.append(keep)
+
             min_support_count = self.min_outlier_support * total_o_w
 
-            tree = build_fptree(filtered_outlier_observations, None, min_support_count)
-            candidates = fpgrowth(tree, suffix=tuple(), min_support_count=min_support_count, max_len=self.max_len)
-
-            # (3) Final RR filter vs inliers (only for candidates)
+            tree = build_fptree(filtered_out, None, min_support_count)
+            candidates = fpgrowth(
+                tree,
+                suffix=tuple(),
+                min_support_count=min_support_count,
+                max_len=self.max_len
+            )
 
             for cand_items, ao in candidates:
-                
-                if len(cand_items) > self.max_len:
+                key = tuple(sorted(cand_items))
+                if key in seen:
                     continue
-                # πόσοι inliers στο ΠΑΡΑΘΥΡΟ περιέχουν αυτό το pattern
-                ai = 0.0
+                seen.add(key)
+                if len(cand_items) < 2:
+                    continue
                 cset = set(cand_items)
-                for obs in window_inlier_observations:
+                ai = 0.0
+                for obs in window_in:
                     if cset.issubset(set(obs)):
                         ai += 1.0
-                # counts + supports ΜΟΝΟ από το sliding window
                 bo = total_o_w - ao
                 bi = total_i_w - ai
                 sup_o = ao / max(total_o_w, 1e-9)
@@ -251,39 +263,17 @@ class MDPStreamExplainer:
                 rr = risk_ratio(ao, ai, bo, bi)
                 if rr >= self.min_risk_ratio:
                     expls.append(Explanation(
-                        items=tuple(sorted(cand_items)),
+                        items=key,
                         ao=ao, ai=ai, bo=bo, bi=bi,
                         support_outlier=sup_o, support_inlier=sup_i,
-                        risk_ratio=rr, k=len(cand_items)
+                        risk_ratio=rr, k=len(key)
                     ))
-
-        # Include singleton explanations too (MacroBase returns all subsets that pass)
-        for it in passed:
-            ao = self.amc_out.get(it)
-            ai = self.amc_in.get(it)
-
-            bo = self.total_o - ao
-            bi = self.total_i - ai
-            sup_o = ao / max(self.total_o, 1e-9)
-            sup_i = ai / max(self.total_i, 1e-9) if self.total_i > 0 else 0.0
-            rr = risk_ratio(ao, ai, bo, bi)
-            print("inliers with siglenton:", ai, "outliers with siglenton:", ao,
-                    "inliers WITHOUT siglenton:", bi, "outliers WITHOUT siglenton:", bo)
-            print("RISK RATIO:", rr)
-            expls.append(Explanation(
-                items=(it,),
-                ao=ao, ai=ai, bo=bo, bi=bi,
-                support_outlier=sup_o, support_inlier=sup_i,
-                risk_ratio=rr, k=1
-            ))
-
-        # sort first by risk ratio then by outlier suppport
+        
+        # sort and filter
         expls.sort(key=lambda e: (e.risk_ratio, e.support_outlier), reverse=True)
-
-        # Option 1: keep current maximal filtering (existing behavior)
         expls = filter_maximal_patterns(expls)
 
-        # roll window: decay & maintenance, reset buffers
+        # AMC decay
         self.amc_out.decay()
         self.amc_in.decay()
         factor = 1.0 - self.decay_rate
