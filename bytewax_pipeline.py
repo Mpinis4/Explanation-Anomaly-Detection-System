@@ -5,8 +5,7 @@ from bytewax.connectors.kafka import KafkaSource, KafkaSink, KafkaSinkMessage
 from config import (
     KAFKA_BROKER, KAFKA_TOPIC, OUT_TOPIC, EXPLANATIONS_TOPIC,
     MDP_MIN_SUPPORT, MDP_MIN_RR, MDP_MAX_K,
-    MDP_WINDOW_MAX_EVENTS, MDP_WINDOW_MAX_SECONDS,
-    MDP_AMC_STABLE_SIZE, MDP_DECAY_RATE,
+    MDP_WINDOW_MAX_EVENTS, MDP_AMC_STABLE_SIZE, MDP_DECAY_RATE,
     MDP_NUM_BINS,MDP_SLIDE_STEP
 )
 from river_anomaly import detect_anomaly
@@ -35,7 +34,6 @@ def build_explainer():
         decay_rate=MDP_DECAY_RATE,
         amc_stable_size=MDP_AMC_STABLE_SIZE,
         window_max_events=MDP_WINDOW_MAX_EVENTS,
-        window_max_seconds=MDP_WINDOW_MAX_SECONDS,
         slide_step=MDP_SLIDE_STEP
     )
 
@@ -107,13 +105,11 @@ def step(state: MDPStreamExplainer, value):
     )
 
     exps = state.maybe_emit()
-    # print(">>> maybe_emit returned:", exps)   # <--- DEBUG
     if exps:
         payload = {
             "window": {"size_events": MDP_WINDOW_MAX_EVENTS},
             "explanations": [e.__dict__ for e in exps],
         }
-        # print(">>> EXPLANATIONS PAYLOAD:", payload)   # <--- DEBUG
         msgs.append(
             KafkaSinkMessage(
                 key=location_name.encode(),
@@ -132,26 +128,14 @@ flow = Dataflow("weather_with_mdp")
 # Kafka input -> decode into (key, value)
 kinp = op.input("input", flow, KafkaSource([KAFKA_BROKER], [KAFKA_TOPIC]))
 keyed = op.map("to_key_value", kinp, lambda msg: ("__global__", msg.value))
-# op.inspect("keyed input",keyed)
 
 ex_out = op.stateful_flat_map("mdp_step", keyed, step)
 
 # Drop the stateful key, keep only KafkaSinkMessages
 just_msgs = op.map("drop_key", ex_out, lambda kv: kv[1])
 
-# Debug inspect
-# def debug_inspect(step_id, item):
-#     print(f"[{step_id}] DEBUG TYPE: {type(item)} -> {item}")
-#     return item
-
-# debugged = op.inspect("debug-out", just_msgs, debug_inspect)
-
 # Filter out only the explanations (topic == EXPLANATIONS_TOPIC)
-explanations = op.filter("only_explanations", just_msgs, 
-                         lambda msg: msg.topic == EXPLANATIONS_TOPIC)
-
-# Inspect them
-# op.inspect("explanations-debug", explanations, lambda sid, item: print(f"[{sid}] {item.value.decode()}") or item)
+explanations = op.filter("only_explanations", just_msgs, lambda msg: msg.topic == EXPLANATIONS_TOPIC)
 
 # Output to Kafka
 op.output("kafka-out", just_msgs, KafkaSink([KAFKA_BROKER], topic=None))

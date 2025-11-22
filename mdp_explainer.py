@@ -117,7 +117,6 @@ class MDPStreamExplainer:
         decay_rate: float = 0.0,
         amc_stable_size: int = 5000,
         window_max_events: int = 5,
-        window_max_seconds: Optional[float] = 10,
         slide_step:int=None
     ) -> None:
         self.min_outlier_support = min_outlier_support
@@ -127,13 +126,10 @@ class MDPStreamExplainer:
         self.amc_in = AMC(decay_rate=decay_rate)
         self.total_o = 0.0
         self.total_i = 0.0
-        # self.window_outliers_observations: List[List[Tuple[str, Any]]] = []
-        # self.window_inlier_observations: List[List[Tuple[str, Any]]] = []
         self.window_observations: List[Tuple[bool, List[Tuple[str, Any]]]] = []
         self.window_events = 0
         self.window_started_at = time.time()
         self.window_max_events = window_max_events
-        self.window_max_seconds = window_max_seconds
         self.slide_step=slide_step or window_max_events
         self.amc_stable_size = amc_stable_size
         self.decay_rate = decay_rate
@@ -176,21 +172,7 @@ class MDPStreamExplainer:
         self.window_events += 1
         if len(self.window_observations) > self.window_max_events:
             self.window_observations.pop(0)
-        # if self.window_events % 256 == 0:
-        #     self.amc_out.maintain_by_size(self.amc_stable_size)
-        #     self.amc_in.maintain_by_size(self.amc_stable_size)
-        # if len(self.window_outliers_observations) > self.window_max_events:
-        #     self.window_outliers_observations.pop(0)
-        # if len(self.window_inlier_observations) > self.window_max_events:
-        #     self.window_inlier_observations.pop(0)
 
-
-    # def window_ready(self) -> bool:
-    #     if self.window_max_events and self.window_events >= self.window_max_events:
-    #         return True
-    #     if self.window_max_seconds is not None and (time.time() - self.window_started_at) >= self.window_max_seconds:
-    #         return True
-    #     return False
     def window_ready(self) -> bool:
         # Εκπέμπει κάθε φορά που έχουν έρθει slide_step νέα γεγονότα
         return self.window_events % self.slide_step == 0
@@ -217,9 +199,6 @@ class MDPStreamExplainer:
                 bo = self.total_o - ao
                 bi = self.total_i - ai
                 rr = risk_ratio(ao, ai, bo, bi)
-                # print("TOTAL OUTLIERS:",self.total_o,"TOTAL INLIERS:",self.total_i)
-                # print("inliers with this attribute:",ai,"outliers with this attribute:",ao,"inliers WITHOUT this attribute:",bi,"outliers WITHOUT this attribute:",bo)
-                # print("RISK RATIO:",rr)
                 if sup_o >= self.min_outlier_support and rr >= self.min_risk_ratio:
                     
                     passed.append(it)
@@ -271,10 +250,6 @@ class MDPStreamExplainer:
                 sup_o = ao / max(total_o_w, 1e-9)
                 sup_i = ai / max(total_i_w, 1e-9) if total_i_w > 0 else 0.0
                 rr = risk_ratio(ao, ai, bo, bi)
-                # print("WINDOW OUTLIERS:", total_o_w, "WINDOW INLIERS:", total_i_w)
-                # print("inliers with pattern:", ai, "outliers with pattern:", ao,
-                #       "inliers WITHOUT pattern:", bi, "outliers WITHOUT pattern:", bo)
-                # print("RISK RATIO(pattern):", rr)
                 if rr >= self.min_risk_ratio:
                     expls.append(Explanation(
                         items=tuple(sorted(cand_items)),
@@ -317,9 +292,5 @@ class MDPStreamExplainer:
         self.total_i *= factor
         self.amc_out.maintain_by_size(self.amc_stable_size)
         self.amc_in.maintain_by_size(self.amc_stable_size)
-        # clear the fp-tree observers should look into it its not the best solution to outlier support skyrocketing
-        # self.window_outliers_observations.clear()
-        # self.window_inlier_observations.clear()
-        # self.window_events = 0
-        # self.window_started_at = time.time()
+        
         return expls

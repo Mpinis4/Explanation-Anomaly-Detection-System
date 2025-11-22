@@ -13,7 +13,6 @@ MDP_MAX_K = 9 # max combination size
 
 # streaming windowing
 MDP_WINDOW_MAX_EVENTS = 100 # emit explanations every N events
-MDP_WINDOW_MAX_SECONDS = None # or a float in seconds
 MDP_SLIDE_STEP=20
 
 # AMC sketch (single-attribute counts)
