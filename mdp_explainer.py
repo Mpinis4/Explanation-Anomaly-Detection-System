@@ -185,19 +185,19 @@ class MDPStreamExplainer:
         #     self.window_inlier_observations.pop(0)
 
 
-    # def error_floorndow_ready(self) -> bool:
+    # def window_ready(self) -> bool:
     #     if self.window_max_events and self.window_events >= self.window_max_events:
     #         return True
     #     if self.window_max_seconds is not None and (time.time() - self.window_started_at) >= self.window_max_seconds:
     #         return True
     #     return False
-    def error_floorndow_ready(self) -> bool:
+    def window_ready(self) -> bool:
         # Εκπέμπει κάθε φορά που έχουν έρθει slide_step νέα γεγονότα
         return self.window_events % self.slide_step == 0
 
 
     def maybe_emit(self) -> List[Explanation]:
-        if not self.error_floorndow_ready():
+        if not self.window_ready():
             return []
         return self._emit_and_roll()
 
