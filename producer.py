@@ -30,21 +30,6 @@ locations = [
     {"name": "Santiago", "lat": -33.4489, "lon": -70.6693, "country": "CL"},
     {"name": "Cape Town", "lat": -33.9249, "lon": 18.4241, "country": "ZA"},
 
-    # # Humid Subtropical
-    # {"name": "New York", "lat": 40.7128, "lon": -74.0060, "country": "US"},
-    # {"name": "Buenos Aires", "lat": -34.6037, "lon": -58.3816, "country": "AR"},
-    # {"name": "Tokyo", "lat": 35.6895, "lon": 139.6917, "country": "JP"},
-    # {"name": "Mumbai", "lat": 19.0760, "lon": 72.8777, "country": "IN"},
-
-    # # Tropical
-    # {"name": "Miami", "lat": 25.7617, "lon": -80.1918, "country": "US"},
-    # {"name": "Singapore", "lat": 1.3521, "lon": 103.8198, "country": "SG"},
-    # {"name": "Nairobi", "lat": -1.2864, "lon": 36.8172, "country": "KE"},
-
-    # # Marine/Temperate
-    # {"name": "Seattle", "lat": 47.6062, "lon": -122.3321, "country": "US"},
-    # {"name": "London", "lat": 51.5074, "lon": -0.1278, "country": "GB"},
-    # {"name": "Berlin", "lat": 52.5200, "lon": 13.4050, "country": "DE"},
 ]
 
 # Kafka topic

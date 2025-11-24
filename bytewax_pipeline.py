@@ -1,6 +1,7 @@
 from bytewax.dataflow import Dataflow
 from bytewax import operators as op
 from bytewax.connectors.kafka import KafkaSource, KafkaSink, KafkaSinkMessage
+import time
 
 from config import (
     KAFKA_BROKER, KAFKA_TOPIC, OUT_TOPIC, EXPLANATIONS_TOPIC,
@@ -41,6 +42,7 @@ def build_explainer():
 # ---------- Stateful step ----------
 
 def step(state: MDPStreamExplainer, value):
+    start_time = time.time()
     if state is None:
         state = build_explainer()
 
@@ -75,9 +77,10 @@ def step(state: MDPStreamExplainer, value):
     }
 
     is_it_anomaly_label = data.get("is_anomaly", False)
-
     # Detect anomalies
+    t1=time.time()
     anomaly_score, is_anomaly = detect_anomaly(features,true_label=is_it_anomaly_label)
+    t2=time.time()
     data["anomaly_score"] = anomaly_score
     data["anomaly"] = is_anomaly
     # Convert to explainer attributes
@@ -91,7 +94,7 @@ def step(state: MDPStreamExplainer, value):
         print(">>> LOCATION NAME:", data.get("location_name"), "ANOMALY:", is_anomaly,"ANOMALY SCORE:",anomaly_score)
     # Update explainer state
     state.observe(attrs, data.get("anomaly", False))
-
+    t3=time.time()
     # Build Kafka messages
     msgs = []
     location_name = data.get("location_name", "")
@@ -117,7 +120,18 @@ def step(state: MDPStreamExplainer, value):
                 topic=EXPLANATIONS_TOPIC,
             )
         )
-
+    end_time = time.time()
+    # print(
+    #     f"""
+    # ---- LATENCY (ms) ----
+    # transform : {(t1 - start_time) * 1000:8.2f}
+    # anomaly   : {(t2 - t1) * 1000:8.2f}
+    # observe   : {(t3 - t2) * 1000:8.2f}
+    # emit      : {(end_time - t3) * 1000:8.2f}
+    # -----------------------
+    # TOTAL     : {(end_time - start_time) * 1000:8.2f}
+    # """
+    # )
     return state, msgs
 
 

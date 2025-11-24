@@ -30,7 +30,7 @@ def filter_maximal_patterns(expls: List[Explanation]) -> List[Explanation]:
     return maximal
 
 def risk_ratio(ao: float, ai: float, bo: float, bi: float, eps: float = 1e-9) -> float:
-    num = (ao +1)/ max(ao + ai+2, eps)
+    num = (ao+1) / max(ao + ai+2, eps)
     den = (bo+1) / max(bo + bi+2, eps)
     if den == 0:
         den = eps
@@ -82,9 +82,9 @@ class AMC:
         factor = 1.0 - self.decay_rate
         for k in list(self.counts.keys()):
             self.counts[k] *= factor
-            if self.counts[k] < 1e-12:
+            if self.counts[k] < 1e-9:
                 del self.counts[k]
-        self.error_floor *= factor
+        self.error_floor = max(0.0, self.error_floor * factor)
 
     def get(self, item: Any) -> float:
         return self.counts.get(item, 0.0)
@@ -134,7 +134,7 @@ class MDPStreamExplainer:
 
     # ---- discretization helper ----
     @staticmethod
-    def bucketize_01(x: float, bins: int = 5) -> str:
+    def bucketize(x: float, bins: int = 5) -> str:
         if x is None or math.isnan(x):
             return "nan"
         i = int(min(bins - 1, max(0, math.floor(x * bins))))
@@ -146,7 +146,7 @@ class MDPStreamExplainer:
         attrs: Dict[str, Any] = {}
         for k, v in raw_features.items():
             if isinstance(v, (int, float)):
-                attrs[f"{k}_bin"] = MDPStreamExplainer.bucketize_01(float(v), bins)
+                attrs[f"{k}_bin"] = MDPStreamExplainer.bucketize(float(v), bins)
             else:
                 attrs[k] = v
         if extra_cats:
@@ -160,11 +160,9 @@ class MDPStreamExplainer:
         if is_outlier:
             self.total_o += 1.0
             self.amc_out.batch_observe(items, 1.0)
-            # self.window_outliers_observations.append(list(items))
         else:
             self.total_i += 1.0
             self.amc_in.batch_observe(items, 1.0)
-            # self.window_inlier_observations.append(list(items))
         
         self.window_observations.append((is_outlier,list(items)))
         self.window_events += 1
@@ -237,12 +235,7 @@ class MDPStreamExplainer:
             min_support_count = self.min_outlier_support * total_o_w
 
             tree = build_fptree(filtered_out, None, min_support_count)
-            candidates = fpgrowth(
-                tree,
-                suffix=tuple(),
-                min_support_count=min_support_count,
-                max_len=self.max_len
-            )
+            candidates = fpgrowth(tree, suffix=tuple(), min_support_count=min_support_count,max_len=self.max_len)
 
             for cand_items, ao in candidates:
                 key = tuple(sorted(cand_items))
@@ -273,7 +266,7 @@ class MDPStreamExplainer:
         expls.sort(key=lambda e: (e.risk_ratio, e.support_outlier), reverse=True)
         expls = filter_maximal_patterns(expls)
 
-        # AMC decay
+        # AMC decay and maintain size
         self.amc_out.decay()
         self.amc_in.decay()
         factor = 1.0 - self.decay_rate
