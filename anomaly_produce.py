@@ -32,18 +32,18 @@ if __name__ == "__main__":
             ],
             "main": {
                 "temp": 8,
-                "pressure": 1080,
-                "humidity": 10 
+                "pressure": 1010,
+                "humidity": 47 
             },
             "wind": {
-                "speed": 10.0,
+                "speed": 6.0,
                 "deg": 180
             },
             "clouds": {"all": 48},
             "rain": {"1h": 4},
-            "sys": {"country": "GR"},
+            "sys": {"country": "IT"},
 
-            "location_name": "Athens",
+            "location_name": "Rome",
             "is_anomaly": True
         }
         

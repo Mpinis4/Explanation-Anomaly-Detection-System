@@ -121,17 +121,17 @@ def step(state: MDPStreamExplainer, value):
             )
         )
     end_time = time.time()
-    # print(
-    #     f"""
-    # ---- LATENCY (ms) ----
-    # transform : {(t1 - start_time) * 1000:8.2f}
-    # anomaly   : {(t2 - t1) * 1000:8.2f}
-    # observe   : {(t3 - t2) * 1000:8.2f}
-    # emit      : {(end_time - t3) * 1000:8.2f}
-    # -----------------------
-    # TOTAL     : {(end_time - start_time) * 1000:8.2f}
-    # """
-    # )
+    print(
+        f"""
+    ---- LATENCY (ms) ----
+    transform : {(t1 - start_time) * 1000:8.2f}
+    anomaly   : {(t2 - t1) * 1000:8.2f}
+    observe   : {(t3 - t2) * 1000:8.2f}
+    emit      : {(end_time - t3) * 1000:8.2f}
+    -----------------------
+    TOTAL     : {(end_time - start_time) * 1000:8.2f}
+    """
+    )
     return state, msgs
 
 
