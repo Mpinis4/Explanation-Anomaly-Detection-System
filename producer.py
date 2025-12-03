@@ -10,7 +10,11 @@ config = {
     'acks': 'all',
 }
 producer = Producer(config)
-
+PRODUCER_STATS = {
+    "msg_count": 0,
+    "last_print": time.time(),
+    "start_time": time.time()
+}
 # Delivery callback to confirm message delivery
 def delivery_callback(err, msg):
     if err:
@@ -58,9 +62,16 @@ def fetch_and_send_weather_data(location):
                 topic,
                 key=location['name'],
                 value=json.dumps(weather_data),
-                callback=delivery_callback
+                # callback=delivery_callback
             )
             producer.flush()
+            PRODUCER_STATS["msg_count"] += 1
+            now = time.time()
+            if now - PRODUCER_STATS["last_print"] >= 5.0:  # Κάθε 5 δευτερόλεπτα
+                rate = PRODUCER_STATS["msg_count"] / (now - PRODUCER_STATS["start_time"])
+                print(f"[PRODUCER] Total: {PRODUCER_STATS['msg_count']} | Rate: {rate:.1f} msg/sec")
+                PRODUCER_STATS["last_print"] = now
+
         else:
             print(f"Failed to fetch data for {location['name']}: {weather_data}")
     except Exception as e:

@@ -23,10 +23,10 @@ LAT_STATS = {
 }
 
 TP_STATS = {
-    "count": 0,
-    "last_print": time.time(),
-    "total_events": 0,           # New: total events processed
-    "start_time": time.time()    # New: overall start time
+    "last_print": time.monotonic(),  # ΧΡΗΣΗ MONOTONIC (δεν επηρεάζεται από NTP)
+    "events_since_last_print": 0,
+    "total_events": 0,
+    "start_time": time.monotonic()    # Αρχή με monotonic
 }
 
 # ---------- Helpers ----------
@@ -152,24 +152,29 @@ def step(state: MDPStreamExplainer, value):
     #         f"max_total_ms={LAT_STATS['total_ms_max']:.2f}"
     #     )
 
-    TP_STATS["count"] += 1
-    TP_STATS["total_events"] += 1  # Increment total counter
-    now = time.time()
-
-    elapsed = now - TP_STATS["last_print"]
-
-    if elapsed >= 1.0:
-        # Instantaneous rate (last second)
-        instant_rate = TP_STATS["count"] / elapsed
+    # ========== FIXED THROUGHPUT CALCULATION ==========
+    TP_STATS["events_since_last_print"] += 1
+    TP_STATS["total_events"] += 1
+    
+    now = time.monotonic()  # ΠΑΝΤΑ monotonic
+    elapsed_since_last_print = now - TP_STATS["last_print"]
+    
+    # Εκτύπωση ΚΑΘΕ 1.0 δευτερόλεπτο (όχι "κάθε ~1 sec")
+    if elapsed_since_last_print >= 1.0:
+        # 1. Στιγμιαίο throughput (ακριβές)
+        instant_rate = TP_STATS["events_since_last_print"] / elapsed_since_last_print
         
-        # Cumulative rate (from start)
+        # 2. Cumulative throughput (ακριβές) - Ο ΣΩΣΤΟΣ τρόπος
         total_elapsed = now - TP_STATS["start_time"]
         cumulative_rate = TP_STATS["total_events"] / total_elapsed
         
-        print(f"[THROUGHPUT] Instant: {instant_rate:.1f} events/sec | Cumulative: {cumulative_rate:.1f} events/sec | Total: {TP_STATS['total_events']}")
-
-        TP_STATS["count"] = 0
-        TP_STATS["last_print"] = now
+        print(f"[THROUGHPUT_FIXED] Instant: {instant_rate:6.1f} events/sec | "
+              f"Cumulative: {cumulative_rate:6.1f} events/sec | "
+              f"Total: {TP_STATS['total_events']}")
+        
+        # Reset ΜΟΝΟ τον counter του "προηγούμενου παραθύρου"
+        TP_STATS["events_since_last_print"] = 0
+        TP_STATS["last_print"] = now  # Ακριβές reset
     # Αναλυτική εκτύπωση ανά φάση (όπως ήδη είχες)
     # print(
     #     f"""
