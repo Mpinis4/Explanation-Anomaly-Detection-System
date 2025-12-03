@@ -14,6 +14,20 @@ from mdp_explainer import MDPStreamExplainer, Explanation
 import json
 import numpy as np
 
+# ---------- latency stats ----------
+
+LAT_STATS = {
+    "n": 0,              # events sum
+    "total_ms_sum": 0.0, #  total latency
+    "total_ms_max": 0.0  # max TOTAL latency
+}
+
+TP_STATS = {
+    "count": 0,
+    "last_print": time.time(),
+    "total_events": 0,           # New: total events processed
+    "start_time": time.time()    # New: overall start time
+}
 
 # ---------- Helpers ----------
 
@@ -121,17 +135,53 @@ def step(state: MDPStreamExplainer, value):
             )
         )
     end_time = time.time()
-    print(
-        f"""
-    ---- LATENCY (ms) ----
-    transform : {(t1 - start_time) * 1000:8.2f}
-    anomaly   : {(t2 - t1) * 1000:8.2f}
-    observe   : {(t3 - t2) * 1000:8.2f}
-    emit      : {(end_time - t3) * 1000:8.2f}
-    -----------------------
-    TOTAL     : {(end_time - start_time) * 1000:8.2f}
-    """
-    )
+    
+    # Υπολογισμός TOTAL latency σε ms
+    total_ms = (end_time - start_time) * 1000
+
+    # # ---- LATENCY (ms) ----
+    # LAT_STATS["n"] += 1
+    # LAT_STATS["total_ms_sum"] += total_ms
+    # LAT_STATS["total_ms_max"] = max(LAT_STATS["total_ms_max"], total_ms)
+
+    # if LAT_STATS["n"] % 50 == 0:
+    #     avg_ms = LAT_STATS["total_ms_sum"] / LAT_STATS["n"]
+    #     print(
+    #         f"[LATENCY_STATS] events={LAT_STATS['n']} "
+    #         f"avg_total_ms={avg_ms:.2f} "
+    #         f"max_total_ms={LAT_STATS['total_ms_max']:.2f}"
+    #     )
+
+    TP_STATS["count"] += 1
+    TP_STATS["total_events"] += 1  # Increment total counter
+    now = time.time()
+
+    elapsed = now - TP_STATS["last_print"]
+
+    if elapsed >= 1.0:
+        # Instantaneous rate (last second)
+        instant_rate = TP_STATS["count"] / elapsed
+        
+        # Cumulative rate (from start)
+        total_elapsed = now - TP_STATS["start_time"]
+        cumulative_rate = TP_STATS["total_events"] / total_elapsed
+        
+        print(f"[THROUGHPUT] Instant: {instant_rate:.1f} events/sec | Cumulative: {cumulative_rate:.1f} events/sec | Total: {TP_STATS['total_events']}")
+
+        TP_STATS["count"] = 0
+        TP_STATS["last_print"] = now
+    # Αναλυτική εκτύπωση ανά φάση (όπως ήδη είχες)
+    # print(
+    #     f"""
+    # ---- LATENCY (ms) ----
+    # transform : {(t1 - start_time) * 1000:8.2f}
+    # anomaly   : {(t2 - t1) * 1000:8.2f}
+    # observe   : {(t3 - t2) * 1000:8.2f}
+    # emit      : {(end_time - t3) * 1000:8.2f}
+    # -----------------------
+    # TOTAL     : {total_ms:8.2f}
+    # """
+    # )
     return state, msgs
 
 
