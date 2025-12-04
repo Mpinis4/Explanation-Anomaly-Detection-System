@@ -14,19 +14,20 @@ from mdp_explainer import MDPStreamExplainer, Explanation
 import json
 import numpy as np
 
-# ---------- latency stats ----------
+# Latency stats
 
 LAT_STATS = {
-    "n": 0,              # events sum
-    "total_ms_sum": 0.0, #  total latency
-    "total_ms_max": 0.0  # max TOTAL latency
+    "n": 0,              
+    "total_ms_sum": 0.0, 
+    "total_ms_max": 0.0  
 }
 
+# Throughput stats
 TP_STATS = {
-    "last_print": time.monotonic(),  # ΧΡΗΣΗ MONOTONIC (δεν επηρεάζεται από NTP)
+    "last_print": time.monotonic(), 
     "events_since_last_print": 0,
     "total_events": 0,
-    "start_time": time.monotonic()    # Αρχή με monotonic
+    "start_time": time.monotonic()
 }
 
 # ---------- Helpers ----------
@@ -60,7 +61,7 @@ def step(state: MDPStreamExplainer, value):
     if state is None:
         state = build_explainer()
 
-    # decode -> dict
+    # decode to dict
     if isinstance(value, bytes):
         value = value.decode()
     raw = json.loads(value)
@@ -136,10 +137,10 @@ def step(state: MDPStreamExplainer, value):
         )
     end_time = time.time()
     
-    # Υπολογισμός TOTAL latency σε ms
+    # Total Latency
     total_ms = (end_time - start_time) * 1000
 
-    # # ---- LATENCY (ms) ----
+    # # Bytewax pipeline Latency
     # LAT_STATS["n"] += 1
     # LAT_STATS["total_ms_sum"] += total_ms
     # LAT_STATS["total_ms_max"] = max(LAT_STATS["total_ms_max"], total_ms)
@@ -152,30 +153,29 @@ def step(state: MDPStreamExplainer, value):
     #         f"max_total_ms={LAT_STATS['total_ms_max']:.2f}"
     #     )
 
-    # ========== FIXED THROUGHPUT CALCULATION ==========
-    TP_STATS["events_since_last_print"] += 1
-    TP_STATS["total_events"] += 1
+    # # Bytewax pipeline Troughput
+    # TP_STATS["events_since_last_print"] += 1
+    # TP_STATS["total_events"] += 1
     
-    now = time.monotonic()  # ΠΑΝΤΑ monotonic
-    elapsed_since_last_print = now - TP_STATS["last_print"]
+    # now = time.monotonic()
+    # elapsed_since_last_print = now - TP_STATS["last_print"]
     
-    # Εκτύπωση ΚΑΘΕ 1.0 δευτερόλεπτο (όχι "κάθε ~1 sec")
-    if elapsed_since_last_print >= 1.0:
-        # 1. Στιγμιαίο throughput (ακριβές)
-        instant_rate = TP_STATS["events_since_last_print"] / elapsed_since_last_print
+    # if elapsed_since_last_print >= 1.0:
+    #     # Instant Throughput
+    #     instant_rate = TP_STATS["events_since_last_print"] / elapsed_since_last_print
         
-        # 2. Cumulative throughput (ακριβές) - Ο ΣΩΣΤΟΣ τρόπος
-        total_elapsed = now - TP_STATS["start_time"]
-        cumulative_rate = TP_STATS["total_events"] / total_elapsed
+    #     # 2. Cumulative Throughput 
+    #     total_elapsed = now - TP_STATS["start_time"]
+    #     cumulative_rate = TP_STATS["total_events"] / total_elapsed
         
-        print(f"[THROUGHPUT_FIXED] Instant: {instant_rate:6.1f} events/sec | "
-              f"Cumulative: {cumulative_rate:6.1f} events/sec | "
-              f"Total: {TP_STATS['total_events']}")
+    #     print(f"[THROUGHPUT_FIXED] Instant: {instant_rate:6.1f} events/sec | "
+    #           f"Cumulative: {cumulative_rate:6.1f} events/sec | "
+    #           f"Total: {TP_STATS['total_events']}")
         
-        # Reset ΜΟΝΟ τον counter του "προηγούμενου παραθύρου"
-        TP_STATS["events_since_last_print"] = 0
-        TP_STATS["last_print"] = now  # Ακριβές reset
-    # Αναλυτική εκτύπωση ανά φάση (όπως ήδη είχες)
+    #     TP_STATS["events_since_last_print"] = 0
+    #     TP_STATS["last_print"] = now 
+    
+    # Individual subsystems Latency
     # print(
     #     f"""
     # ---- LATENCY (ms) ----
